@@ -3,6 +3,7 @@
 #include <thread>
 #include <opencv2/opencv.hpp>
 #include <fstream>
+#include <string>
 
 // Variáveis globais
 Color Green = Color{38, 185, 154, 255};
@@ -17,6 +18,11 @@ int game_mode; // 0 para singleplayer, 1 para multiplayer
 
 int player_score = 0;
 int cpu_score = 0;
+
+bool game_over = false;
+
+Sound collisionSound;
+Sound goalSound;
 
 class Ball {
  public:
@@ -38,11 +44,13 @@ class Ball {
         // Cpu wins
         if (x + radius >= GetScreenWidth()) {
             cpu_score++;
+            PlaySound(goalSound);
             ResetBall();
         }
 
         if (x - radius <= 0) {
             player_score++;
+            PlaySound(goalSound);
             ResetBall();
         }
     }
@@ -124,67 +132,53 @@ void SaveGameHistory(const std::string& fileName, const std::string& history) {
 }
 
 // Função para exibir o histórico de jogos
-void ShowGameHistory(const std::string& history) {
-    // Implemente a lógica para exibir o histórico na tela
-    // Pode ser uma janela pop-up ou uma nova tela
+void ShowGameHistory(int game_mode) {
+    while (!WindowShouldClose()) {
+        ClearBackground(Dark_Green);
+        DrawText("Histórico de Jogos", screenWidth / 2 - MeasureText("Histórico de Jogos", 30) / 2, 50, 30, WHITE);
+
+        std::string historyFileName = (game_mode == 0) ? "historico_singleplayer.txt" : "historico_multiplayer.txt";
+        std::string history = LoadGameHistory(historyFileName);
+
+        DrawText(history.c_str(), 100, 100, 20, WHITE);
+        
+        DrawText("Pressione ESC para voltar ao menu", screenWidth / 2 - MeasureText("Pressione ESC para voltar ao menu", 20) / 2, screenHeight - 100, 20, WHITE);
+    
+        EndDrawing();
+    }
 }
+
 
 // Função para a tela inicial
 int ShowMainMenu() {
     int selectedOption = 0;  // Opção selecionada (0 para single player, 1 para multiplayer, 2 para histórico, 3 para sair)
 
     while (!WindowShouldClose()) {
-        if (IsKeyPressed(KEY_DOWN)) {
-            selectedOption = (selectedOption + 1) % 4;
-        } else if (IsKeyPressed(KEY_UP)) {
-            if (selectedOption == 0) {
-                selectedOption = 3;
-            } else {
-                selectedOption--;
-            }
-        }
-
         ClearBackground(Dark_Green);
 
         DrawText("Pong CV", screenWidth / 2 - MeasureText("Pong CV", 40) / 2, 100, 40, WHITE);
 
         // Botões
-        if (selectedOption == 0) {
-            DrawText("Single Player", screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, 20, LIGHTGRAY);
-            DrawText("Multiplayer", screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, 20, WHITE);
-            DrawText("Game History", screenWidth / 2 - MeasureText("Game History", 20) / 2, 400, 20, WHITE);
-            DrawText("Quit", screenWidth / 2 - MeasureText("Quit", 20) / 2, 450, 20, WHITE);
+        DrawText("Single Player", screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, 20, WHITE);
+        DrawText("Multiplayer", screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, 20, WHITE);
+        DrawText("Game History (Singleplayer)", screenWidth / 2 - MeasureText("Game History (Singleplayer)", 20) / 2, 400, 20, WHITE);
+        DrawText("Game History (Multiplayer)", screenWidth / 2 - MeasureText("Game History (Multiplayer)", 20) / 2, 450, 20, WHITE);
+        DrawText("Quit", screenWidth / 2 - MeasureText("Quit", 20) / 2, 500, 20, WHITE);
 
-            if (IsKeyPressed(KEY_ENTER)) {
+        // Verifique os cliques do mouse
+        if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
+            Vector2 mousePos = GetMousePosition();
+            if (CheckCollisionPointRec(mousePos, {screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, MeasureText("Single Player", 20), 20})) {
                 return 0;  // Retorne 0 para iniciar o jogo single player
-            }
-        } else if (selectedOption == 1) {
-            DrawText("Single Player", screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, 20, WHITE);
-            DrawText("Multiplayer", screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, 20, LIGHTGRAY);
-            DrawText("Game History", screenWidth / 2 - MeasureText("Game History", 20) / 2, 400, 20, WHITE);
-            DrawText("Quit", screenWidth / 2 - MeasureText("Quit", 20) / 2, 450, 20, WHITE);
-
-            if (IsKeyPressed(KEY_ENTER)) {
+            } else if (CheckCollisionPointRec(mousePos, {screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, MeasureText("Multiplayer", 20), 20})) {
                 return 1;  // Retorne 1 para iniciar o jogo multiplayer
-            }
-        } else if (selectedOption == 2) {
-            DrawText("Single Player", screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, 20, WHITE);
-            DrawText("Multiplayer", screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, 20, WHITE);
-            DrawText("Game History", screenWidth / 2 - MeasureText("Game History", 20) / 2, 400, 20, LIGHTGRAY);
-            DrawText("Quit", screenWidth / 2 - MeasureText("Quit", 20) / 2, 450, 20, WHITE);
-
-            if (IsKeyPressed(KEY_ENTER)) {
-                // Carregue o histórico e exiba-o (implemente a funcionalidade)
-                std::string history = LoadGameHistory("game_history.txt");
-                ShowGameHistory(history);
-            }
-        } else if (selectedOption == 3) {
-            DrawText("Single Player", screenWidth / 2 - MeasureText("Single Player", 20) / 2, 300, 20, WHITE);
-            DrawText("Multiplayer", screenWidth / 2 - MeasureText("Multiplayer", 20) / 2, 350, 20, WHITE);
-            DrawText("Game History", screenWidth / 2 - MeasureText("Game History", 20) / 2, 400, 20, WHITE);
-            DrawText("Quit", screenWidth / 2 - MeasureText("Quit", 20) / 2, 450, 20, LIGHTGRAY);
-
-            if (IsKeyPressed(KEY_ENTER)) {
+            } else if (CheckCollisionPointRec(mousePos, {screenWidth / 2 - MeasureText("Game History (Singleplayer)", 20) / 2, 400, MeasureText("Game History (Singleplayer)", 20), 20})) {
+                // Carregue e exiba o histórico de singleplayer
+                ShowGameHistory(0);
+            } else if (CheckCollisionPointRec(mousePos, {screenWidth / 2 - MeasureText("Game History (Multiplayer)", 20) / 2, 450, MeasureText("Game History (Multiplayer)", 20), 20})) {
+                // Carregue e exiba o histórico de multiplayer
+                ShowGameHistory(1);
+            } else if (CheckCollisionPointRec(mousePos, {screenWidth / 2 - MeasureText("Quit", 20) / 2, 500, MeasureText("Quit", 20), 20})) {
                 return 3;  // Retorne 3 para sair do jogo
             }
         }
@@ -195,8 +189,31 @@ int ShowMainMenu() {
     return 0;
 }
 
+
+// Função para exibir a tela de resultado
+void ShowResultScreen(const std::string& winner) {
+    while (!WindowShouldClose() && !IsKeyPressed(KEY_ESCAPE)) {
+        ClearBackground(Dark_Green);
+
+        DrawText("Game Over", screenWidth / 2 - MeasureText("Game Over", 40) / 2, 100, 40, WHITE);
+        DrawText(TextFormat("%s Venceu!", winner.c_str()), screenWidth / 2 - MeasureText(winner.c_str(), 30) / 2, 200, 30, WHITE);
+        DrawText("Pressione ESC para retornar ao menu", screenWidth / 2 - MeasureText("Press ESC to return to the main menu", 20) / 2, 300, 20, WHITE);
+
+        EndDrawing();
+    }
+
+    std::string historyFileName = (game_mode == 0) ? "historico_singleplayer.txt" : "historico_multiplayer.txt";
+    std::string history = LoadGameHistory(historyFileName);
+    history += winner + " venceu!\n";
+    SaveGameHistory(historyFileName, history);
+
+    game_over = false;
+}
+
 // Função principal do jogo Pong (Single Player)
 int PlaySinglePlayerPong() {
+    game_mode = 0;
+    player_score = cpu_score = 0;
     std::cout << "Starting the game" << std::endl;
     const int screen_width = 1280;
     const int screen_height = 800;
@@ -229,13 +246,26 @@ int PlaySinglePlayerPong() {
         player1.Update();
         cpu.Update(ball.y);
 
+        // Verifique se um dos scores passou de 10
+        if (player_score >= 10) {
+            game_over = true;
+            ShowResultScreen("Player");
+            break;
+        } else if (cpu_score >= 10) {
+            game_over = true;
+            ShowResultScreen("CPU");
+            break;
+        }
+
         // Checking for collisions
         if (CheckCollisionCircleRec({ball.x, ball.y}, ball.radius, {player1.x, player1.y, player1.width, player1.height})) {
             ball.speed_x *= -1;
+            PlaySound(collisionSound);
         }
 
         if (CheckCollisionCircleRec({ball.x, ball.y}, ball.radius, {cpu.x, cpu.y, cpu.width, cpu.height})) {
             ball.speed_x *= -1;
+            PlaySound(collisionSound);
         }
 
         // Drawing
@@ -252,14 +282,85 @@ int PlaySinglePlayerPong() {
         EndDrawing();
     }
 
+    EndDrawing();
     CloseWindow();
     return 0;
 }
 
 // Função principal do jogo Pong (Multiplayer)
 int PlayMultiplayerPong() {
-    // ... (código do jogo Pong multiplayer)
+    game_mode = 1;
+    player_score = cpu_score = 0;
+    std::cout << "Starting the game" << std::endl;
+    const int screen_width = 1280;
+    const int screen_height = 800;
+    InitWindow(screen_width, screen_height, "My Pong Game!");
+    SetTargetFPS(60);
+    ball.radius = 20;
+    ball.x = screen_width / 2;
+    ball.y = screen_height / 2;
+    ball.speed_x = 7;
+    ball.speed_y = 7;
 
+    player1.width = 25;
+    player1.height = 120;
+    player1.x = screen_width - player1.width - 10;
+    player1.y = screen_height / 2 - player1.height / 2;
+    player1.speed = 6;
+
+    player2.height = 120;
+    player2.width = 25;
+    player2.x = 10;
+    player2.y = screen_height / 2 - player2.height / 2;
+    player2.speed = 6;
+
+    while (WindowShouldClose() == false) {
+        BeginDrawing();
+
+        // Updating
+
+        ball.Update();
+        player1.Update();
+        player2.Update();
+
+        // Verifique se um dos scores passou de 10
+        if (player_score >= 10) {
+            game_over = true;
+            ShowResultScreen("Player 1");
+            break;
+        } else if (cpu_score >= 10) {
+            game_over = true;
+            ShowResultScreen("Player 2");
+            break;
+        }
+
+        // Checking for collisions
+        if (CheckCollisionCircleRec({ball.x, ball.y}, ball.radius, {player1.x, player1.y, player1.width, player1.height})) {
+            ball.speed_x *= -1;
+            PlaySound(collisionSound);
+        }
+
+        if (CheckCollisionCircleRec({ball.x, ball.y}, ball.radius, {player2.x, player2.y, player2.width, player2.height})) {
+            ball.speed_x *= -1;
+            PlaySound(collisionSound);
+        }
+
+        // Drawing
+        ClearBackground(Dark_Green);
+        DrawRectangle(screen_width / 2, 0, screen_width / 2, screen_height, Green);
+        DrawCircle(screen_width / 2, screen_height / 2, 150, Light_Green);
+        DrawLine(screen_width / 2, 0, screen_width / 2, screen_height, WHITE);
+        ball.Draw();
+        player2.Draw();
+        player1.Draw();
+        DrawText(TextFormat("%i", cpu_score), screen_width / 4 - 20, 20, 80, WHITE);
+        DrawText(TextFormat("%i", player_score), 3 * screen_width / 4 - 20, 20, 80, WHITE);
+
+        EndDrawing();
+    }
+
+    EndDrawing();
+    CloseWindow();
     return 0;
 }
 
@@ -314,6 +415,8 @@ int opencv() {
             
         }
 
+        cv::flip(frame, frame, 1);
+
         // Exiba o quadro com os rostos detectados
         cv::imshow("Detecção de Rosto", frame);
 
@@ -329,28 +432,31 @@ int opencv() {
 }
 
 int game() {
-    InitWindow(screenWidth, screenHeight, "Pong CV - Main Menu");
-
     while (true) {
+        InitWindow(screenWidth, screenHeight, "Pong CV - Main Menu");
+    
         int selectedOption = ShowMainMenu();
 
         if (selectedOption == 0) {
-            // Inicie o jogo single player quando a opção for selecionada
             CloseWindow();
             PlaySinglePlayerPong();
         } else if (selectedOption == 1) {
-            // Inicie o jogo multiplayer quando a opção for selecionada
             CloseWindow();
             PlayMultiplayerPong();
         } else if (selectedOption == 3) {
-            // Saia do jogo quando a opção for selecionada
             CloseWindow();
             return 0;
         }
     }
 }
 
+
 int main() {
+    InitAudioDevice(); // Inicializa o subsistema de áudio do raylib
+
+    collisionSound = LoadSound("audios/cong.mp3"); // Carrega o som de colisão
+    goalSound = LoadSound("audios/goal.mp3");
+
     // Crie duas threads para executar as funções simultaneamente
     std::thread thread1(opencv);
     std::thread thread2(game);
