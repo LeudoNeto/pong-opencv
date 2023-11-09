@@ -1,0 +1,13 @@
+sudo apt update
+
+sudo apt install git cmake build-essential libasound2-dev libx11-dev libxrandr-dev libxi-dev libgl1-mesa-dev libglu1-mesa-dev
+
+git clone https://github.com/raysan5/raylib.git
+
+cd raylib
+
+mkdir build
+cd build
+cmake ..
+make
+sudo make install
